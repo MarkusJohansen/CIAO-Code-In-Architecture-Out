@@ -1,0 +1,19 @@
+# CIAO Configuration
+# All values here are defaults; CLI flags override them.
+
+# Target repository (GitHub URL or local path)
+repo:
+  url: "https://github.com/SaraPettinari/ocean-lib"
+
+# LLM backend
+llm:
+  base_url: "http://localhost:8080/v1"
+  model: "~/models/Qwythos-9B-Q4_K_M.gguf"
+  api_key: null
+  token_limit: 400000
+  timeout: 300.0
+
+# Execution control
+execution:
+  max_parallel: 1
+  output_file: "arc42_documentation.txt"

@@ -24,6 +24,7 @@ from typing import (
 
 import aiofiles
 import tiktoken
+import yaml
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from openai.types.chat import (
@@ -42,31 +43,55 @@ load_dotenv()
 
 
 BASE_DIR: Path = Path(__file__).resolve().parent
-CONFIG_PATH: Path = BASE_DIR / "repomix.config.json"
+REPO_CONFIG_PATH: Path = BASE_DIR / "config.yaml"
+REPO_MIX_CONFIG_PATH: Path = BASE_DIR / "repomix.config.json"
 MEMORY_PATH: Path = BASE_DIR / "prompt.json"
 FULL_CODE_PATH: Path = BASE_DIR / "full_code.txt"
 MD_PATH: Path = BASE_DIR / "arc42_documentation.txt"
 
-MODEL_NAME: str = os.environ.get("LLM_MODEL", "gpt-5-2025-08-07")
-TOKEN_LIMIT: int = int(os.environ.get("TOKEN_LIMIT", "400000"))
+# Load config.yaml if present
+_yaml_conf: dict[str, Any] = {}
+if REPO_CONFIG_PATH.exists():
+    with open(REPO_CONFIG_PATH, "r") as f:
+        _yaml_conf = yaml.safe_load(f) or {}
+
+# Helper to resolve precedence: config.yaml < .env < explicit CLI (later)
+def _conf(path: str, env: str, default: Any = None) -> Any:
+    # .env overrides yaml
+    val = os.environ.get(env)
+    if val is not None:
+        return val
+    # yaml
+    keys = path.split(".")
+    node = _yaml_conf
+    for k in keys:
+        node = node.get(k, {}) if isinstance(node, dict) else {}
+    if node or isinstance(node, bool):
+        return node
+    return default
+
+MODEL_NAME: str = _conf("llm.model", "LLM_MODEL", "gpt-5-2025-08-07")
+TOKEN_LIMIT: int = int(str(_conf("llm.token_limit", "TOKEN_LIMIT", "400000")))
+LLM_BASE_URL: str | None = str(_conf("llm.base_url", "LLM_BASE_URL", "")) or None
+LLM_API_KEY: str | None = str(_conf("llm.api_key", "LLM_API_KEY", "")) or None
+LLM_TIMEOUT: float = float(str(_conf("llm.timeout", "LLM_TIMEOUT", "300.0")))
+
+REPO_URL: str | None = str(_conf("repo.url", "REPO_URL", "")) or None
 
 try:
     enc = tiktoken.encoding_for_model(MODEL_NAME)
 except KeyError:
     enc = tiktoken.get_encoding("cl100k_base")
 
-LLM_BASE_URL: str | None = os.environ.get("LLM_BASE_URL")
-LLM_API_KEY: str | None = os.environ.get("LLM_API_KEY")
-
 # If a local base URL is set, use it; otherwise fall back to OpenAI
 if LLM_BASE_URL:
     client = AsyncOpenAI(
         base_url=LLM_BASE_URL,
         api_key=LLM_API_KEY or "no-key",
-        timeout=300.0,
+        timeout=LLM_TIMEOUT,
     )
 else:
-    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=300.0)
+    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=LLM_TIMEOUT)
 
 
 MessageParam = Union[
@@ -204,11 +229,11 @@ async def call_openai_with_retry(
 
 async def flatten_repo(repo: str) -> str:
 
-    if not CONFIG_PATH.exists():
-        raise SystemExit(f"❌ Config file missing: {CONFIG_PATH}")
+    if not REPO_MIX_CONFIG_PATH.exists():
+        raise SystemExit(f"❌ Config file missing: {REPO_MIX_CONFIG_PATH}")
 
     is_remote = repo.startswith(("http://", "https://", "git@"))
-    cmd = ["repomix", "--remote", repo, "-c", str(CONFIG_PATH)] if is_remote else ["repomix", repo, "-c", str(CONFIG_PATH)]
+    cmd = ["repomix", "--remote", repo, "-c", str(REPO_MIX_CONFIG_PATH)] if is_remote else ["repomix", repo, "-c", str(REPO_MIX_CONFIG_PATH)]
 
     print("   ↪", " ".join(cmd))
     proc = await asyncio.create_subprocess_exec(
@@ -317,10 +342,18 @@ CHECKLIST
 
 async def async_main() -> None:
 
+    # Defaults from config.yaml
+    default_repo = REPO_URL
+    default_parallel = int(str(_yaml_conf.get("execution", {}).get("max_parallel", 12)))
+
     parser = argparse.ArgumentParser(description="Generate arc42 docs via Repomix CLI + LLM (async & typed)")
-    parser.add_argument("repository", help="Local path or Git URL")
-    parser.add_argument("--max-parallel", type=int, default=12, help="Maximum concurrent LLM calls (default: 12)")
+    parser.add_argument("repository", nargs='?', default=default_repo, help="Local path or Git URL (default: config.yaml repo.url)")
+    parser.add_argument("--max-parallel", type=int, default=default_parallel, help="Maximum concurrent LLM calls")
     args = parser.parse_args()
+
+    repo = args.repository
+    if not repo:
+        raise SystemExit("❌ No repository specified. Set repo.url in config.yaml or pass as argument.")
 
     if not (LLM_BASE_URL or os.environ.get("OPENAI_API_KEY")):
         raise SystemExit(

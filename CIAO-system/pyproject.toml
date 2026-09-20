@@ -8,9 +8,11 @@ dependencies = [
     "aiofiles>=24.0",
     "openai>=1.0",
     "python-dotenv>=1.0",
+    "pyyaml>=6.0",
     "repomix>=0.4",
     "tiktoken>=0.7",
 ]
 
 [project.scripts]
-ciao = "main:main"
+ciao = "main:async_main"
+
