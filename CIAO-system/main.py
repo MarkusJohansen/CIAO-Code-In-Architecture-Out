@@ -50,14 +50,23 @@ MD_PATH: Path = BASE_DIR / "arc42_documentation.txt"
 MODEL_NAME: str = os.environ.get("LLM_MODEL", "gpt-5-2025-08-07")
 TOKEN_LIMIT: int = int(os.environ.get("TOKEN_LIMIT", "400000"))
 
+try:
+    enc = tiktoken.encoding_for_model(MODEL_NAME)
+except KeyError:
+    enc = tiktoken.get_encoding("cl100k_base")
+
 LLM_BASE_URL: str | None = os.environ.get("LLM_BASE_URL")
 LLM_API_KEY: str | None = os.environ.get("LLM_API_KEY")
 
 # If a local base URL is set, use it; otherwise fall back to OpenAI
 if LLM_BASE_URL:
-    client = AsyncOpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY or "no-key")
+    client = AsyncOpenAI(
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY or "no-key",
+        timeout=300.0,
+    )
 else:
-    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=300.0)
 
 
 MessageParam = Union[
@@ -286,10 +295,10 @@ CHECKLIST
         print(f"⚠️  Skipped {sid} (prompt {total_tok} tokens > {TOKEN_LIMIT})")
         return ""
 
+    # llama.cpp chat templates require a single system message at the top.
+    system_combined = f"{system_global}\n\n{system_md}\n\n{assistant_payload}"
     messages: List[MessageParam] = [
-        sys_msg(system_global),
-        sys_msg(system_md),
-        asst_msg(assistant_payload),
+        sys_msg(system_combined),
         usr_msg(user_payload),
     ]
 

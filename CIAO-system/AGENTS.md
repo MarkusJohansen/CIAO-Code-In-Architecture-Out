@@ -66,6 +66,11 @@ uv run main.py https://github.com/example/repo
 curl http://localhost:8080/health
 ```
 
+## Agent self-maintenance
+- **Update CONTEXT.md and AGENTS.md when making structural changes** — If you modify: (1) the overall architecture, (2) tech stack or dependencies, (3) project-level conventions/workflows, or (4) known limitations, update the corresponding memory files immediately so future agents have correct context.
+- **Keep docs in sync with code** — After any code change that invalidates existing documentation, update the docs in the same session. Do not leave stale context.
+- **Record corrections** — When you fix a bug, clarify a misconception, or correct a wrong assumption that was documented, write the correction into CONTEXT.md or AGENTS.md so the same mistake isn't repeated.
+
 ## Agent conventions
 - **Never commit `.env`** — it has local paths and API keys. If you modify `.env`, check if `.env.example` needs updating too.
 - **Keep `prompt.json` valid JSON** — it drives the entire doc generation pipeline.
