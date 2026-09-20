@@ -18,12 +18,23 @@ LLM_MODEL="${LLM_MODEL/#\~/$HOME}"
 
 # Default arg: point to a repo
 REPO="${1:-}"
+shift || true
+
+# Parse optional flags
+MAX_PARALLEL=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --max-parallel) MAX_PARALLEL="--max-parallel=$2"; shift 2 ;;
+        --max-parallel=*) MAX_PARALLEL="$1"; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
 
 # Check repo arg
 if [ -z "$REPO" ]; then
-    echo "Usage: $0 <github-repo-url-or-local-path>"
+    echo "Usage: $0 <github-repo-url-or-local-path> [--max-parallel N]"
     echo "  e.g. $0 https://github.com/example/project"
-    echo "  e.g. $0 ../my-local-repo"
+    echo "  e.g. $0 ../my-local-repo --max-parallel 1"
     exit 1
 fi
 
@@ -67,14 +78,34 @@ else
     echo ""
 fi
 
-# --- Run CIAO ---
+# --- Run CIAO with live output ---
 echo "🌀 Running CIAO on: $REPO"
 echo "   LLM:    $LLM_MODEL"
 echo "   API:    $LLM_BASE_URL"
+if [ -n "$MAX_PARALLEL" ]; then
+    echo "   Mode:   serial ($MAX_PARALLEL)"
+fi
 echo ""
 
-uv run main.py "$REPO"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_FILE="ciao_${TIMESTAMP}.log"
 
+echo "📝 Logging to: $LOG_FILE"
+echo "   (tail -f $LOG_FILE in another terminal to watch progress)"
 echo ""
-echo "✅ CIAO run complete."
-echo "📄 Check arc42_documentation.txt for output."
+
+# Force unbuffered Python output so tee captures everything immediately
+PYTHONUNBUFFERED=1 uv run main.py ${MAX_PARALLEL:-} "$REPO" 2>&1 | tee "$LOG_FILE"
+
+# Check if output was created
+if [ -f "arc42_documentation.txt" ]; then
+    SIZE=$(wc -c < "arc42_documentation.txt" | tr -d ' ')
+    echo ""
+    echo "✅ CIAO run complete."
+    echo "📄 Output: arc42_documentation.txt (${SIZE} bytes)"
+    echo "📋 Log:    $LOG_FILE"
+else
+    echo ""
+    echo "⚠️  CIAO finished but arc42_documentation.txt was not created."
+    echo "📋 Log:    $LOG_FILE"
+fi
