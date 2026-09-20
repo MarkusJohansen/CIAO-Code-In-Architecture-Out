@@ -14,5 +14,5 @@ dependencies = [
 ]
 
 [project.scripts]
-ciao = "main:async_main"
+ciao = "main:main"
 

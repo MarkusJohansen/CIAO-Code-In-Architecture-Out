@@ -408,8 +408,13 @@ async def async_main() -> None:
     print(f"✅ MD written to {MD_PATH}")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Synchronous entry point for uv / CLI."""
     try:
         asyncio.run(async_main())
     except KeyboardInterrupt:
         print("\nInterrupted by user.")
+
+
+if __name__ == "__main__":
+    main()
