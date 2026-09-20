@@ -131,4 +131,4 @@ CHECKLIST
 
     dur = time.perf_counter() - start
     print(f"✔️  {sid} finished in {dur:.2f}s")
-    return f"% {sid} — {spec['title']}\n{content}"
+    return f"<!-- Section {sid} — {spec['title']} -->\n\n{content}"

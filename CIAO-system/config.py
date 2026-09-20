@@ -15,7 +15,6 @@ REPO_CONFIG_PATH: Path = BASE_DIR / "config.yaml"
 REPO_MIX_CONFIG_PATH: Path = BASE_DIR / "repomix.config.json"
 MEMORY_PATH: Path = BASE_DIR / "prompt.json"
 FULL_CODE_PATH: Path = BASE_DIR / "full_code.txt"
-MD_PATH: Path = BASE_DIR / "arc42_documentation.txt"
 
 _yaml_conf: dict[str, Any] = {}
 if REPO_CONFIG_PATH.exists():
@@ -47,3 +46,8 @@ LLM_TIMEOUT: float = float(str(_conf("llm.timeout", "LLM_TIMEOUT", "300.0")))
 # Repo / execution settings
 REPO_URL: str | None = str(_conf("repo.url", "REPO_URL", "")) or None
 DEFAULT_MAX_PARALLEL: int = int(str(_yaml_conf.get("execution", {}).get("max_parallel", 12)))
+
+# Output paths — put docs under results/<model-name>/
+RESULTS_DIR: Path = BASE_DIR / "results" / Path(os.path.expanduser(MODEL_NAME)).name
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+MD_PATH: Path = RESULTS_DIR / "arc42_documentation.md"
