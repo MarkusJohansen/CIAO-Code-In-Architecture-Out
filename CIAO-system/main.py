@@ -24,6 +24,7 @@ from typing import (
 
 import aiofiles
 import tiktoken
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from openai.types.chat import (
     ChatCompletion,
@@ -35,6 +36,9 @@ from openai.types.chat import (
     ChatCompletionDeveloperMessageParam,
 )
 
+# Load .env file before any other configuration
+load_dotenv()
+
 
 
 BASE_DIR: Path = Path(__file__).resolve().parent
@@ -43,16 +47,17 @@ MEMORY_PATH: Path = BASE_DIR / "prompt.json"
 FULL_CODE_PATH: Path = BASE_DIR / "full_code.txt"
 MD_PATH: Path = BASE_DIR / "arc42_documentation.txt"
 
-MODEL_NAME: str = "gpt-5-2025-08-07" #"gpt-5-nano-2025-08-07"#"gpt-5-mini-2025-08-07"#"gpt-4o-mini-2024-07-18" #"gpt-4o-mini-2024-07-18"
-TOKEN_LIMIT: int = 400_000
+MODEL_NAME: str = os.environ.get("LLM_MODEL", "gpt-5-2025-08-07")
+TOKEN_LIMIT: int = int(os.environ.get("TOKEN_LIMIT", "400000"))
 
+LLM_BASE_URL: str | None = os.environ.get("LLM_BASE_URL")
+LLM_API_KEY: str | None = os.environ.get("LLM_API_KEY")
 
-try:
-    enc = tiktoken.encoding_for_model(MODEL_NAME)
-except Exception:
-    enc = tiktoken.get_encoding("cl100k_base")
-
-client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# If a local base URL is set, use it; otherwise fall back to OpenAI
+if LLM_BASE_URL:
+    client = AsyncOpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY or "no-key")
+else:
+    client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 MessageParam = Union[
@@ -303,13 +308,17 @@ CHECKLIST
 
 async def async_main() -> None:
 
-    parser = argparse.ArgumentParser(description="Generate arc42 docs via Repomix CLI + OpenAI (async & typed)")
+    parser = argparse.ArgumentParser(description="Generate arc42 docs via Repomix CLI + LLM (async & typed)")
     parser.add_argument("repository", help="Local path or Git URL")
-    parser.add_argument("--max-parallel", type=int, default=12, help="Maximum concurrent OpenAI calls (default: 12)")
+    parser.add_argument("--max-parallel", type=int, default=12, help="Maximum concurrent LLM calls (default: 12)")
     args = parser.parse_args()
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise SystemExit("❌ Environment variable OPENAI_API_KEY not set.")
+    if not (LLM_BASE_URL or os.environ.get("OPENAI_API_KEY")):
+        raise SystemExit(
+            "❌ No LLM configured. Set either:\n"
+            "   LLM_BASE_URL (e.g. http://localhost:11434/v1 for Ollama)\n"
+            "   or OPENAI_API_KEY for OpenAI."
+        )
 
     print("🌀 Flattening repository …")
     code = await flatten_repo(args.repository)

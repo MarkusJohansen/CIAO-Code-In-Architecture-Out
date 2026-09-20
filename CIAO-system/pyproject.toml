@@ -1,0 +1,16 @@
+[project]
+name = "ciao"
+version = "1.0.0"
+description = "CIAO — Code-In-Architecture-Out: generate Markdown documentation from code repositories using LLMs"
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiofiles>=24.0",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+    "repomix>=0.4",
+    "tiktoken>=0.7",
+]
+
+[project.scripts]
+ciao = "main:main"
