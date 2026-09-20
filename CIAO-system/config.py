@@ -50,4 +50,3 @@ DEFAULT_MAX_PARALLEL: int = int(str(_yaml_conf.get("execution", {}).get("max_par
 # Output paths — put docs under results/<model-name>/
 RESULTS_DIR: Path = BASE_DIR / "results" / Path(os.path.expanduser(MODEL_NAME)).name
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-MD_PATH: Path = RESULTS_DIR / "arc42_documentation.md"

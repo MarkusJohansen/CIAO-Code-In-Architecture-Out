@@ -16,7 +16,7 @@ from config import (
     REPO_URL,
     DEFAULT_MAX_PARALLEL,
     LLM_BASE_URL,
-    MD_PATH,
+    RESULTS_DIR,
     MEMORY_PATH,
     FULL_CODE_PATH,
 )
@@ -42,6 +42,10 @@ async def async_main() -> None:
     repo = args.repository
     if not repo:
         raise SystemExit("❌ No repository specified. Set repo.url in config.yaml or pass as argument.")
+
+    # derive clean repo name for output file
+    repo_name = repo.rstrip("/").rsplit("/", 1)[-1].replace(".git", "")
+    md_path = RESULTS_DIR / f"{repo_name}_doc.md"
 
     if not (LLM_BASE_URL or os.environ.get("OPENAI_API_KEY")):
         raise SystemExit(
@@ -87,10 +91,10 @@ async def async_main() -> None:
     md_parts.extend(filter(None, sections))
     md_parts.append(" ")
 
-    async with aiofiles.open(MD_PATH, "w", encoding="utf-8") as f:
+    async with aiofiles.open(md_path, "w", encoding="utf-8") as f:
         await f.write("\n\n".join(md_parts))
 
-    print(f"✅ MD written to {MD_PATH}")
+    print(f"✅ MD written to {md_path}")
 
 
 def main() -> None:
